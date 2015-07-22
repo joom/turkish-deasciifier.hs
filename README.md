@@ -1,4 +1,4 @@
-# turkish-deasciifier.hs
+# turkish-deasciifier.hs [![Build Status](https://secure.travis-ci.org/joom/turkish-deasciifier.hs.svg)](http://travis-ci.org/joom/turkish-deasciifier.hs)
 Haskell port of [Deniz Yuret's Turkish deasciifier](https://github.com/emres/turkish-mode). Translated from the the [Java](https://github.com/ahmetalpbalkan/turkish-deasciifier-java) and [JavaScript](https://github.com/f/deasciifier) ports.
 
 ## Installation
