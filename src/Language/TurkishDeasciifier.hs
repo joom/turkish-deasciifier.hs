@@ -4,8 +4,8 @@ import Data.List (foldl')
 import Data.Char (toLower)
 import Data.Maybe (fromMaybe)
 import qualified Data.Map.Lazy as M
-import qualified Data.Vector as V
-import qualified Data.Vector.Mutable as DVM
+import qualified Data.Vector.Unboxed as V
+import qualified Data.Vector.Unboxed.Mutable as DVM
 import Language.TurkishDeasciifier.Table (turkishPatternTable)
 
 turkishContextSize :: Int
@@ -53,11 +53,11 @@ setCharAt :: V.Vector Char -> Int -> Char -> V.Vector Char
 setCharAt v i c = V.modify (\v' -> DVM.unsafeWrite v' i c) v
 
 -- | Java's substring for lists.
-substring :: Int -> Int -> [a] -> [a]
+substring :: Int -> Int -> String -> String
 substring x y = drop x . take y
 
 -- | Java's substring for vectors.
-vsubstring :: Int -> Int -> V.Vector a -> V.Vector a
+vsubstring :: Int -> Int -> V.Vector Char -> V.Vector Char
 vsubstring x y = V.drop x . V.take y
 
 -- | Returns the deasciified text.
@@ -96,7 +96,7 @@ turkishMatchPattern v point dlist = rank > 0
 
 turkishGetContext :: V.Vector Char -> Int -> Int -> String
 turkishGetContext v size point =
-    V.toList $ fst (loopUp s'' (size - 1) False (point - 1))
+    V.toList $ loopUp s'' (size - 1) False (point - 1)
   where
     loopDown :: V.Vector Char -> Int -> Bool -> Int -> (V.Vector Char, Int)
     loopDown s' i space index =
@@ -106,7 +106,7 @@ turkishGetContext v size point =
           Nothing -> loopDown s' (i + 1) True (index + 1))
       else  (s', i)
 
-    loopUp :: V.Vector Char -> Int -> Bool -> Int -> (V.Vector Char, Int)
+    loopUp :: V.Vector Char -> Int -> Bool -> Int -> V.Vector Char
     loopUp s' i space index =
       if i >= 0 && index >= 0 then
         (case M.lookup ((V.!) v index) turkishUpcaseAccentsTable of
@@ -115,7 +115,7 @@ turkishGetContext v size point =
           Nothing -> if   space
                      then loopUp s' (i - 2) space (index - 1)
                      else loopUp s' (i - 1) True  (index - 1) )
-      else (s', i)
+      else s'
 
     s       = setCharAt (V.replicate (2 * size + 1) ' ') size 'X'
     (s', i) = loopDown s (size + 1) False (point + 1)
