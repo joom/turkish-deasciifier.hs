@@ -23,7 +23,7 @@ main = putStrLn (deasciify "Pijamali hasta yagiz sofore cabucak guvendi.")
 As an executable:
 
 ```
-$ echo "Pijamali hasta yagiz sofore cabucak guvendi." | deasciify
+$ echo "Pijamali hasta yagiz sofore cabucak guvendi." | turkish-deasciifier
 
 Pijamalı hasta yağız şoföre çabucak güvendi.
 ```
