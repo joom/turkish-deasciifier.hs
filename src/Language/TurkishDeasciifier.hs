@@ -1,4 +1,4 @@
-module Language.TurkishDeasciifier where
+module Language.TurkishDeasciifier (deasciify) where
 
 import Data.List (foldl')
 import Data.Char (toLower)
@@ -27,6 +27,14 @@ turkishDowncaseAsciifyTable =
                 , ('ö', 'o') , ('Ö', 'o') , ('ı', 'i') , ('İ', 'i')
                 , ('ş', 's') , ('Ş', 's') , ('ü', 'u') , ('Ü', 'u') ]
 
+turkishUpcaseAccentsTable :: M.Map Char Char
+turkishUpcaseAccentsTable =
+  M.fromList $ concatMap (\c -> let x = toLower c in [(c, x), (x, x)])
+                         uppercaseLetters
+             ++ [ ('ç', 'C') , ('Ç', 'C') , ('ğ', 'G') , ('Ğ', 'G')
+                , ('ö', 'O') , ('Ö', 'O') , ('ı', 'I') , ('İ', 'i')
+                , ('ş', 'S') , ('Ş', 'S') , ('ü', 'U') , ('Ü', 'U') ]
+
 turkishToggleAccentTable :: M.Map Char Char
 turkishToggleAccentTable =
   M.fromList [ ('c', 'ç') , ('C', 'Ç') , ('g', 'ğ') , ('G', 'Ğ') , ('o', 'ö')
@@ -36,14 +44,7 @@ turkishToggleAccentTable =
              , ('Ö', 'O') , ('ü', 'u') , ('Ü', 'U') , ('ı', 'i') , ('İ', 'I')
              , ('ş', 's') , ('Ş', 'S') ] -- end of other direction
 
-turkishUpcaseAccentsTable :: M.Map Char Char
-turkishUpcaseAccentsTable =
-  M.fromList $ concatMap (\c -> let x = toLower c in [(c, x), (x, x)])
-                         uppercaseLetters
-             ++ [ ('ç', 'C') , ('Ç', 'C') , ('ğ', 'G') , ('Ğ', 'G')
-                , ('ö', 'O') , ('Ö', 'O') , ('ı', 'I') , ('İ', 'i')
-                , ('ş', 'S') , ('Ş', 'S') , ('ü', 'U') , ('Ü', 'U') ]
-
+-- | Adds or removes Turkish accent.
 turkishToggleAccent :: Char -> Char
 turkishToggleAccent c = fromMaybe c (M.lookup c turkishToggleAccentTable)
 
@@ -70,6 +71,7 @@ deasciify asciiString = V.toList $ V.ifoldl' f original original
       | turkishNeedCorrection v c i = setCharAt v i (turkishToggleAccent c)
       | otherwise = v
 
+-- | Determines if the char at the given index needs correction.
 turkishNeedCorrection :: V.Vector Char -> Char -> Int -> Bool
 turkishNeedCorrection v c point
     | tr == 'I' = if c == tr then not m else m
@@ -87,35 +89,34 @@ turkishMatchPattern v point dlist = rank > 0
             (\acc start ->
                 foldl'
                   (\acc' end -> maybe acc'
-                              (\r -> if abs r < abs acc' then r else acc')
-                              (M.lookup (substring start end str) dlist))
-                  acc
-                  [(turkishContextSize + 1)..(length str)])
-            (M.size dlist * 2) -- initial rank
-            [0..turkishContextSize]
+                                (\r -> if abs r < abs acc' then r else acc')
+                                (M.lookup (substring start end str) dlist))
+                  acc [(turkishContextSize + 1)..(length str)])
+            (M.size dlist * 2) [0..turkishContextSize]
 
 turkishGetContext :: V.Vector Char -> Int -> Int -> String
 turkishGetContext v size point =
-    V.toList $ fst (loopUp s'' (size - 1) False point)
+    V.toList $ fst (loopUp s'' (size - 1) False (point - 1))
   where
     loopDown :: V.Vector Char -> Int -> Bool -> Int -> (V.Vector Char, Int)
     loopDown s' i space index =
       if i < V.length s && not space && index < V.length v then
-        (case M.lookup ((V.!) s' index) turkishDowncaseAsciifyTable of
+        (case M.lookup ((V.!) v index) turkishDowncaseAsciifyTable of
           Just x  -> loopDown (setCharAt s' i x) (i + 1) False (index + 1)
           Nothing -> loopDown s' (i + 1) True (index + 1))
-      else (s', i)
+      else  (s', i)
 
     loopUp :: V.Vector Char -> Int -> Bool -> Int -> (V.Vector Char, Int)
     loopUp s' i space index =
       if i >= 0 && index >= 0 then
         (case M.lookup ((V.!) v index) turkishUpcaseAccentsTable of
           Just x  -> loopUp (setCharAt s' i x)
-                            (if space then i else i - 1) False (index - 1)
-          Nothing -> loopUp s' (i - 1) True (index - 1))
+                            (i - 1) False (index - 1)
+          Nothing -> if   space
+                     then loopUp s' (i - 2) space (index - 1)
+                     else loopUp s' (i - 1) True  (index - 1) )
       else (s', i)
 
-    s       = setCharAt (V.replicate (1 + (2 * size)) ' ') size 'X'
-    (s', i) = loopDown s 0 False point
+    s       = setCharAt (V.replicate (2 * size + 1) ' ') size 'X'
+    (s', i) = loopDown s (size + 1) False (point + 1)
     s''     = vsubstring 0 i s'
-
